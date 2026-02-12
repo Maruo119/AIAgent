@@ -1,5 +1,6 @@
 import os
 import json
+import subprocess
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -7,7 +8,7 @@ load_dotenv()
 client = OpenAI()
 
 # =========================
-# 🛠 ツール実装
+# 🛠 ツール
 # =========================
 
 def read_file(path):
@@ -19,6 +20,14 @@ def write_file(path, content):
         f.write(content)
     return "File written successfully."
 
+def run_tests():
+    result = subprocess.run(
+        ["python", "-m", "pytest"],
+        capture_output=True,
+        text=True
+    )
+    return result.stdout + result.stderr
+
 # =========================
 # 📦 ツール定義
 # =========================
@@ -28,12 +37,9 @@ tools = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "指定したファイルを読み込む",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "path": {"type": "string"}
-                },
+                "properties": {"path": {"type": "string"}},
                 "required": ["path"]
             }
         }
@@ -42,7 +48,6 @@ tools = [
         "type": "function",
         "function": {
             "name": "write_file",
-            "description": "指定したファイルを書き換える",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -52,93 +57,84 @@ tools = [
                 "required": ["path", "content"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_tests",
+            "parameters": {
+                "type": "object",
+                "properties": {}
+            }
+        }
     }
 ]
 
 # =========================
-# 📄 初期情報
+# 初期メッセージ
 # =========================
 
 issue_text = read_file("issue.txt")
 
 messages = [
-    {
-        "role": "system",
-        "content": "あなたはGitHub Issueを解決するAIエージェントです。"
-    },
-    {
-        "role": "user",
-        "content": f"""
-Issue内容:
+    {"role": "system", "content": "あなたはIssueを解決するAIエージェントです。"},
+    {"role": "user", "content": f"""
+Issue:
 {issue_text}
 
-このプロジェクトには以下のファイルがあります:
-- target_code.py
-
-まず target_code.py を読み込み、その後修正してください。
-"""
-    }
+対象ファイルは target_code.py です。
+テストが通るまで修正してください。
+"""}
 ]
 
 # =========================
-# 🔁 1ターン目（read_file）
+# 🔁 最大3ステップ
 # =========================
 
-response = client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=messages,
-    tools=tools,
-    tool_choice="auto"
-)
+for step in range(3):
 
-message = response.choices[0].message
+    print(f"\n===== STEP {step+1} =====")
 
-if message.tool_calls:
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+        tools=tools,
+        tool_choice="auto"
+    )
+
+    message = response.choices[0].message
+
+    if not message.tool_calls:
+        print("LLMがツールを選びませんでした")
+        break
+
     tool_call = message.tool_calls[0]
     tool_name = tool_call.function.name
-    arguments = json.loads(tool_call.function.arguments)
+    arguments = json.loads(tool_call.function.arguments or "{}")
 
-    print("🧠 1回目選択:", tool_name)
+    print("🧠 選択:", tool_name)
 
+    # ツール実行
     if tool_name == "read_file":
-        file_content = read_file(arguments["path"])
+        result = read_file(arguments["path"])
+    elif tool_name == "write_file":
+        result = write_file(arguments["path"], arguments["content"])
+    elif tool_name == "run_tests":
+        result = run_tests()
+    else:
+        result = "Unknown tool"
 
-        # 🔥 ここが重要：結果をLLMに返す
-        messages.append(message)
-        messages.append({
-            "role": "tool",
-            "tool_call_id": tool_call.id,
-            "content": file_content
-        })
+    print("🛠 結果:", result[:500])
 
-        # =========================
-        # 🔁 2ターン目（write_file）
-        # =========================
+    # LLMに結果を渡す
+    messages.append(message)
+    messages.append({
+        "role": "tool",
+        "tool_call_id": tool_call.id,
+        "content": result
+    })
 
-        response2 = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            tools=tools,
-            tool_choice="auto"
-        )
-
-        message2 = response2.choices[0].message
-
-        if message2.tool_calls:
-            tool_call2 = message2.tool_calls[0]
-            tool_name2 = tool_call2.function.name
-            arguments2 = json.loads(tool_call2.function.arguments)
-
-            print("🧠 2回目選択:", tool_name2)
-
-            if tool_name2 == "write_file":
-                result = write_file(arguments2["path"], arguments2["content"])
-                print("🛠 実行結果:", result)
-            else:
-                print("Unexpected tool:", tool_name2)
-
-        else:
-            print("LLMがwrite_fileを選びませんでした。")
-
-else:
-    print("LLMがツールを選びませんでした。")
+    # テスト成功なら終了
+    if tool_name == "run_tests" and "failed" not in result.lower():
+        print("🎉 テスト成功！")
+        break
