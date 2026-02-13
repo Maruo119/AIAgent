@@ -4,6 +4,8 @@ import subprocess
 import requests
 from dotenv import load_dotenv
 from openai import OpenAI
+from git import Repo
+import datetime
 
 load_dotenv()
 client = OpenAI()
@@ -44,6 +46,49 @@ def get_github_issue(owner, repo, issue_number):
     
     issue_data = response.json()
     return issue_data["title"], issue_data["body"]
+
+
+def create_branch(repo_path, issue_number):
+    repo = Repo(repo_path)
+    branch_name = f"ai-fix-issue-{issue_number}-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+    
+    new_branch = repo.create_head(branch_name)
+    new_branch.checkout()
+    
+    return branch_name
+
+def commit_changes(repo_path, message):
+    repo = Repo(repo_path)
+    repo.git.add(A=True)
+    repo.index.commit(message)
+
+def push_branch(repo_path, branch_name):
+    repo = Repo(repo_path)
+    origin = repo.remote(name='origin')
+    origin.push(branch_name)
+
+def create_pull_request(owner, repo, branch_name, issue_number):
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls"
+    
+    headers = {
+        "Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}",
+        "Accept": "application/vnd.github+json"
+    }
+
+    data = {
+        "title": f"AI Fix for Issue #{issue_number}",
+        "head": branch_name,
+        "base": "main",
+        "body": f"Automated fix for issue #{issue_number}"
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+
+    if response.status_code != 201:
+        raise Exception(response.text)
+
+    return response.json()["html_url"]
+
 
 # =========================
 # 📦 ツール定義
@@ -174,3 +219,18 @@ for step in range(3):
     if tool_name == "run_tests" and "failed" not in result.lower():
         print("🎉 テスト成功！")
         break
+
+repo_path = "."
+issue_number = 10
+owner = "Maruo119"
+repo_name = "AIAgent"
+
+branch_name = create_branch(repo_path, issue_number)
+
+commit_changes(repo_path, f"AI fix for issue #{issue_number}")
+
+push_branch(repo_path, branch_name)
+
+pr_url = create_pull_request(owner, repo_name, branch_name, issue_number)
+
+print("🎉 PR created:", pr_url)
