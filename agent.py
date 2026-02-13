@@ -47,6 +47,7 @@ def get_github_issue(owner, repo, issue_number):
     issue_data = response.json()
     return issue_data["title"], issue_data["body"]
 
+
 def create_branch(repo_path, issue_number):
     repo = Repo(repo_path)
     branch_name = f"ai-fix-issue-{issue_number}-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
@@ -87,6 +88,7 @@ def create_pull_request(owner, repo, branch_name, issue_number):
         raise Exception(response.text)
 
     return response.json()["html_url"]
+
 
 # =========================
 # 📦 ツール定義
@@ -217,7 +219,6 @@ for step in range(3):
     if tool_name == "run_tests" and "failed" not in result.lower():
         print("🎉 テスト成功！")
         break
-
 
 repo_path = "."
 issue_number = 10
