@@ -1,11 +1,14 @@
 import os
 import json
 import subprocess
+import requests
 from dotenv import load_dotenv
 from openai import OpenAI
 
 load_dotenv()
 client = OpenAI()
+
+
 
 # =========================
 # 🛠 ツール
@@ -27,6 +30,20 @@ def run_tests():
         text=True
     )
     return result.stdout + result.stderr
+
+def get_github_issue(owner, repo, issue_number):
+    """GitHubのissueを取得"""
+    github_token = os.getenv("GITHUB_TOKEN")
+    headers = {}
+    if github_token:
+        headers["Authorization"] = f"token {github_token}"
+    
+    url = f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    
+    issue_data = response.json()
+    return issue_data["title"], issue_data["body"]
 
 # =========================
 # 📦 ツール定義
@@ -74,7 +91,26 @@ tools = [
 # 初期メッセージ
 # =========================
 
-issue_text = read_file("issue.txt")
+# GitHubのリポジトリとissue情報を環境変数から取得
+github_owner = os.getenv("GITHUB_OWNER", "")
+github_repo = os.getenv("GITHUB_REPO", "")
+github_issue_number = os.getenv("GITHUB_ISSUE_NUMBER", "")
+
+if github_owner and github_repo and github_issue_number:
+    try:
+        issue_title, issue_body = get_github_issue(github_owner, github_repo, github_issue_number)
+        issue_text = f"{issue_title}\n\n{issue_body}"
+        print(f"✅ GitHubからissueを取得しました: {github_owner}/{github_repo}#{github_issue_number}")
+        print(f"\n📌 Issue Title: {issue_title}")
+        print(f"\n📝 Issue Text:\n{issue_text}\n")
+    except Exception as e:
+        print(f"❌ GitHubからissueを取得できませんでした: {e}")
+        issue_text = read_file("issue.txt")
+        print(f"\n📝 Issue Text:\n{issue_text}\n")
+else:
+    print("⚠️ GitHub情報が不足しているため、issue.txtを使用します")
+    issue_text = read_file("issue.txt")
+    print(f"\n📝 Issue Text:\n{issue_text}\n")
 
 messages = [
     {"role": "system", "content": "あなたはIssueを解決するAIエージェントです。"},
