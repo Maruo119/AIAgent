@@ -1,6 +1,7 @@
 import os
 import json
 import subprocess
+import sys
 import requests
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -32,7 +33,7 @@ def write_file(path, content):
 
 def run_tests():
     result = subprocess.run(
-        ["python", "-m", "pytest"],
+        [sys.executable, "-m", "pytest"],
         capture_output=True,
         text=True
     )
