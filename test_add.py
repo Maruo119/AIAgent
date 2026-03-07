@@ -1,5 +1,5 @@
 from operator import add
 from target_code import multiply
 
-def test_add_decimal():
-    assert add(1.5, 2.5) == 5.0
+def test_multiply_decimal():
+    assert multiply(1.5, 2.5) == 3.75
