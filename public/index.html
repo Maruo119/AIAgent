@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Management App</title>
+</head>
+<body>
+  <h1>User Management</h1>
+  <div>
+    <h2>Register User</h2>
+    <input type="text" id="name" placeholder="Name">
+    <input type="email" id="email" placeholder="Email">
+    <select id="role">
+      <option value="user">User</option>
+      <option value="admin">Admin</option>
+    </select>
+    <button onclick="registerUser()">Register</button>
+  </div>
+  <div>
+    <h2>Change Role</h2>
+    <input type="text" id="userId" placeholder="User ID">
+    <select id="newRole">
+      <option value="user">User</option>
+      <option value="admin">Admin</option>
+    </select>
+    <button onclick="changeRole()">Change Role</button>
+  </div>
+  <div>
+    <h2>Search Users</h2>
+    <input type="text" id="searchName" placeholder="Name">
+    <input type="email" id="searchEmail" placeholder="Email">
+    <select id="searchRole">
+      <option value="">All</option>
+      <option value="user">User</option>
+      <option value="admin">Admin</option>
+    </select>
+    <button onclick="searchUsers()">Search</button>
+    <ul id="userList"></ul>
+  </div>
+  <script>
+    async function registerUser() {
+      const name = document.getElementById('name').value;
+      const email = document.getElementById('email').value;
+      const role = document.getElementById('role').value;
+      const response = await fetch('/users/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, role })
+      });
+      const result = await response.json();
+      alert(JSON.stringify(result));
+    }
+
+    async function changeRole() {
+      const id = document.getElementById('userId').value;
+      const role = document.getElementById('newRole').value;
+      const response = await fetch(`/users/${id}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      });
+      const result = await response.json();
+      alert(JSON.stringify(result));
+    }
+
+    async function searchUsers() {
+      const name = document.getElementById('searchName').value;
+      const email = document.getElementById('searchEmail').value;
+      const role = document.getElementById('searchRole').value;
+      const params = new URLSearchParams();
+      if (name) params.append('name', name);
+      if (email) params.append('email', email);
+      if (role) params.append('role', role);
+      const response = await fetch(`/users/search?${params}`);
+      const users = await response.json();
+      const list = document.getElementById('userList');
+      list.innerHTML = '';
+      users.forEach(user => {
+        const li = document.createElement('li');
+        li.textContent = `${user.name} (${user.email}) - ${user.role}`;
+        list.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>
