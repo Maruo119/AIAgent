@@ -10,19 +10,21 @@ async function createDatabaseIfNotExists() {
   await connection.end();
 }
 
-async function getPool() {
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME || 'user_management',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+async function initializePool() {
   await createDatabaseIfNotExists();
-  return mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME || 'user_management',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-  });
+  return pool;
 }
 
-const poolPromise = getPool();
+initializePool();
 
-module.exports = poolPromise;
+module.exports = pool;
