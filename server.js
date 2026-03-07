@@ -3,6 +3,9 @@ const express = require('express');
 const userRoutes = require('./routes/users');
 const pool = require('./db');
 
+console.log('Pool type:', typeof pool);
+console.log('Pool methods:', Object.getOwnPropertyNames(pool));
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
