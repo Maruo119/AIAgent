@@ -11,6 +11,11 @@ load_dotenv()
 client = OpenAI()
 
 
+# =========================
+# 実行方法
+# =========================
+# D:/AIAgent/.venv/Scripts/python.exe agent.py
+
 
 # =========================
 # 🛠 ツール
