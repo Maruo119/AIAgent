@@ -1,4 +1,4 @@
-from operator import add
+#from operator import add
 from target_code import multiply
 
 def test_multiply_decimal():
