@@ -35,7 +35,8 @@ def run_tests():
     result = subprocess.run(
         [sys.executable, "-m", "pytest"],
         capture_output=True,
-        text=True
+        text=True,
+        env=os.environ.copy()
     )
     return result.stdout + result.stderr
 
